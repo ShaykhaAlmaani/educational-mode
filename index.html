@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>EdVenture • Educational Mode — Check Your Work</title>
+
+<!-- MathJax -->
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+<!-- Inter -->
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  /* Brand */
+  --brand-1:#0D2A57;      /* navy */
+  --brand-2:#1A3A7A;
+  --brand-3:#2C7BE5;      /* accent blue */
+
+  /* UI */
+  --bg:#F6F8FC;
+  --ink:#0F172A;
+  --muted:#64748B;
+  --outline:#E7ECF5;
+  --card:#FFFFFF;
+  --glass:rgba(255,255,255,.72);
+  --success:#16a34a;
+  --error:#b91c1c;
+
+  /* Effects */
+  --radius:18px;
+  --radius-sm:12px;
+  --shadow-lg:0 18px 40px rgba(16,24,40,.12);
+  --shadow-md:0 10px 26px rgba(16,24,40,.08);
+  --ring:0 0 0 6px rgba(44,123,229,.15);
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:
+   radial-gradient(1200px 600px at 80% -10%, rgba(44,123,229,.06), transparent 60%),
+   radial-gradient(900px 500px at -10% 20%, rgba(13,42,87,.06), transparent 60%),
+   var(--bg);
+  color:var(--ink);
+  font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
+/* Top bar */
+.topbar{
+  position:sticky; top:0; z-index:40;
+  color:#fff; padding:14px 18px;
+  display:flex; align-items:center; gap:12px;
+  background:linear-gradient(90deg, var(--brand-1), var(--brand-2));
+  box-shadow:0 8px 22px rgba(13,42,87,.22);
+}
+.badge{
+  width:40px;height:40px;border-radius:12px;
+  background:linear-gradient(135deg, rgba(255,255,255,.25), rgba(255,255,255,.12));
+  display:grid;place-items:center;font-weight:800;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);
+}
+.title{font-weight:800;font-size:18px;margin:0}
+.subtitle{opacity:.92;font-size:13px;margin:2px 0 0}
+
+/* Layout */
+.container{max-width:1220px;margin:24px auto;padding:0 16px}
+.grid{display:grid;gap:18px;grid-template-columns:1.04fr .96fr;align-items:start}
+@media (max-width:992px){.grid{grid-template-columns:1fr}}
+
+/* Cards – glass + hover */
+.card{
+  background:var(--glass); backdrop-filter:saturate(1.2) blur(8px);
+  border:1px solid rgba(231,236,245,.8);
+  border-radius:var(--radius); box-shadow:var(--shadow-md);
+  overflow:hidden; transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.card:hover{ transform:translateY(-1px); box-shadow:var(--shadow-lg); border-color:#dfe7f5; }
+.card .header{padding:14px 16px;border-bottom:1px solid var(--outline);background:linear-gradient(180deg,#fbfdff,#f7faff);}
+.card .header span{font-weight:800}
+.card .body{padding:16px}
+
+/* Hero */
+.hero{
+  display:flex;align-items:center;justify-content:space-between;gap:18px;
+  border-radius:var(--radius); padding:20px;
+  background:linear-gradient(180deg, rgba(255,255,255,.82), rgba(255,255,255,.66));
+  border:1px solid rgba(231,236,245,.9); box-shadow:var(--shadow-lg);
+}
+.hero h2{margin:0 0 6px;font-weight:900;letter-spacing:-.01em}
+.hero p{margin:0;color:var(--muted)}
+.hero-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.illus{width:240px;height:140px;border-radius:16px;object-fit:cover;border:1px solid var(--outline)}
+@media (max-width:992px){.illus{display:none}}
+
+/* Buttons */
+.btn{
+  appearance:none;border:none;cursor:pointer;border-radius:14px;
+  padding:12px 18px;font-weight:800;letter-spacing:.01em;
+  transition:.15s transform ease,.2s box-shadow ease,.2s background-color ease;
+  position:relative;overflow:hidden;
+}
+.btn:active{transform:translateY(1px)}
+.btn::after{content:"";position:absolute;inset:0;background:radial-gradient(160px 160px at var(--x,50%) var(--y,50%), rgba(255,255,255,.28), transparent 75%);opacity:0;transition:.35s opacity ease}
+.btn:hover::after{opacity:.9}
+.btn-primary{color:#fff;background:linear-gradient(135deg, var(--brand-1), var(--brand-2));box-shadow:0 10px 22px rgba(13,42,87,.30)}
+.btn-primary:hover{box-shadow:0 14px 28px rgba(13,42,87,.38)}
+.btn-outline{background:#fff;border:1px solid var(--outline);color:var(--ink)}
+.btn-chip{background:#fff;border:1px solid var(--outline);border-radius:999px;padding:8px 12px;font-weight:700}
+
+/* Sticky action bar under camera */
+.fab{
+  position:sticky;bottom:-1px;margin-top:12px;padding:10px;
+  display:flex;gap:10px;align-items:center;justify-content:flex-start;
+  background:linear-gradient(180deg, rgba(246,248,252,0), rgba(246,248,252,1) 35%);
+  border-radius:0 0 var(--radius) var(--radius);
+}
+
+/* Camera + guides */
+.camera-wrap{position:relative;border-radius:16px;overflow:hidden;border:1px solid var(--outline);background:#000}
+video,canvas{display:block;width:100%}
+.guide{position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center}
+.guide .frame{width:78%;height:68%;border:3px dashed rgba(255,255,255,.66);border-radius:14px;box-shadow:0 0 0 9999px rgba(0,0,0,.18) inset}
+
+/* Pills & text blocks */
+.pre{white-space:pre-wrap;word-break:break-word}
+.pill{display:block;background:#F8FAFF;border:1px solid var(--outline);padding:12px 14px;border-radius:12px;min-height:44px}
+.mjx-container{font-size:1.06rem}
+
+/* Skeleton */
+.skeleton{position:relative;overflow:hidden;background:#eef2f8;border-radius:12px;height:48px}
+.skeleton::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg, transparent, rgba(255,255,255,.65), transparent);animation:shimmer 1.35s infinite}
+@keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+
+/* Toggles row */
+.toggles{display:flex;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:13px}
+.toggles label{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--outline);padding:8px 12px;border-radius:999px}
+.toggles input{transform:scale(1.2)}
+
+/* History */
+.history{display:flex;flex-direction:column;gap:10px}
+.history-item{border:1px solid var(--outline);border-radius:12px;padding:10px;background:#fff}
+.history-head{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted)}
+.history-actions{display:flex;gap:6px}
+
+/* Progress chips */
+.progress{display:flex;gap:10px;align-items:center}
+.chip{display:flex;gap:6px;align-items:center;font-size:13px;color:var(--muted);background:#fff;border:1px solid var(--outline);border-radius:999px;padding:6px 10px}
+.dot{width:18px;height:18px;display:grid;place-items:center;border-radius:999px;background:#e9f8ef;color:var(--success);border:1px solid #cbeedd;font-weight:800;font-size:12px;animation:bump .8s ease both}
+@keyframes bump{0%{transform:scale(.9)}50%{transform:scale(1.1)}100%{transform:scale(1)}}
+
+/* Toasts */
+.toast{
+  position:fixed; right:18px; bottom:18px; z-index:90; display:flex; flex-direction:column; gap:10px;
+}
+.toast > div{
+  background:#101828; color:#fff; padding:10px 14px; border-radius:12px;
+  box-shadow:0 10px 26px rgba(16,24,40,.28); opacity:.98; font-weight:600; font-size:13px;
+  transform:translateY(8px); animation:toast-in .22s ease forwards;
+}
+@keyframes toast-in{to{transform:translateY(0)}}
+
+/* Modal */
+.modal{position:fixed; inset:0; display:none; place-items:center; z-index:80; background:rgba(10,15,25,.38)}
+.modal.open{display:grid}
+.modal-card{width:min(560px,92vw); background:#fff; border-radius:18px; box-shadow:var(--shadow-lg); border:1px solid var(--outline); padding:18px}
+.modal-card h3{margin:0 0 8px}
+.modal-card p{margin:6px 0;color:#475569}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+
+.hide{display:none!important}
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<header class="topbar" role="banner">
+  <div class="badge" aria-hidden="true">AI</div>
+  <div>
+    <h1 class="title">Check Your Work with AI</h1>
+    <p class="subtitle">Snap your solution — we’ll OCR, verify steps, and explain clearly.</p>
+  </div>
+</header>
+
+<main class="container">
+  <!-- Hero -->
+  <section class="hero" aria-label="Educational Mode header">
+    <div>
+      <h2>Educational Mode — Check Your Work</h2>
+      <p>Use the camera to capture your written steps. EdVenture explains with LaTeX and learns with you.</p>
+      <div class="hero-actions">
+        <button id="btn-capture-hero" class="btn btn-primary">Capture & Explain</button>
+        <button id="btn-stop-hero" class="btn btn-outline">Stop Camera</button>
+        <div class="progress" aria-label="progress">
+          <div class="chip"><span class="dot">1</span> Camera</div>
+          <div class="chip"><span class="dot">2</span> OCR</div>
+          <div class="chip"><span class="dot">3</span> Explain</div>
+        </div>
+      </div>
+    </div>
+    <img class="illus" alt="illustration"
+         src="https://images.unsplash.com/photo-1558494949-ef010cbdcc31?q=80&w=800&auto=format&fit=crop" />
+  </section>
+
+  <!-- Work area -->
+  <section class="grid" aria-label="work area">
+    <!-- Camera -->
+    <article class="card" aria-label="camera panel">
+      <div class="header">
+        <span>Live Camera</span>
+        <button id="btn-restart" class="btn-chip" title="Restart camera (R)">Restart</button>
+      </div>
+      <div class="body">
+        <div class="camera-wrap" id="camFrame">
+          <video id="video" autoplay playsinline muted aria-label="camera preview"></video>
+          <div class="guide" aria-hidden="true"><div class="frame"></div></div>
+          <canvas id="canvas" style="display:none;"></canvas>
+        </div>
+
+        <div class="toggles" style="margin-top:12px">
+          <label><input id="toggle-auto" type="checkbox"> Auto-capture (every 4s)</label>
+          <label><input id="toggle-crop" type="checkbox" checked> Tight crop (center)</label>
+          <button id="btn-help" class="btn-chip">Tips</button>
+        </div>
+
+        <!-- Sticky action bar -->
+        <div class="fab">
+          <button id="btn-capture" class="btn btn-primary" disabled>Capture & Explain (C)</button>
+          <button id="btn-stop" class="btn btn-outline">Stop Camera (S)</button>
+          <div id="status" class="subtitle" style="margin-left:auto;color:var(--muted)">Starting camera…</div>
+        </div>
+      </div>
+    </article>
+
+    <!-- Results + History -->
+    <div class="stack" aria-live="polite">
+      <!-- OCR -->
+      <article class="card">
+        <div class="header">
+          <span>OCR Output</span>
+          <button id="btn-copy-ocr" class="btn-chip">Copy</button>
+        </div>
+        <div class="body">
+          <div id="ocrSkeleton" class="skeleton hide"></div>
+          <div class="pill"><pre id="ocrText" class="pre">-</pre></div>
+        </div>
+      </article>
+
+      <!-- Explanation -->
+      <article class="card">
+        <div class="header">
+          <span>Explanation</span>
+          <div style="display:flex;gap:8px">
+            <button id="btn-step" class="btn-chip">Step-by-step</button>
+            <button id="btn-copy-expl" class="btn-chip">Copy</button>
+            <button id="btn-share" class="btn-chip">Share</button>
+            <button id="btn-pdf" class="btn-chip">Save PDF</button>
+          </div>
+        </div>
+        <div class="body">
+          <div id="expSkeleton" class="skeleton hide" style="height:96px"></div>
+          <div class="pill" style="padding:14px">
+            <div id="explainOut">-</div>
+            <details id="stepsAcc" class="hide" style="margin-top:10px">
+              <summary style="cursor:pointer;font-weight:800">Reveal steps</summary>
+              <div id="stepsBody" style="margin-top:8px"></div>
+            </details>
+          </div>
+        </div>
+      </article>
+
+      <!-- History -->
+      <article class="card">
+        <div class="header">
+          <span>Session History</span>
+          <button id="btn-clear-history" class="btn-chip">Clear</button>
+        </div>
+        <div class="body">
+          <div id="history" class="history">
+            <div id="history-empty" class="history-item">No previous captures yet.</div>
+          </div>
+        </div>
+      </article>
+    </div>
+  </section>
+</main>
+
+<!-- Tips Modal -->
+<div id="tips" class="modal" role="dialog" aria-modal="true" aria-labelledby="tips-title">
+  <div class="modal-card">
+    <h3 id="tips-title">Better Results — Quick Tips</h3>
+    <p>• Place the expression inside the dashed frame. Avoid glare and shadows.</p>
+    <p>• Use <b>Tight crop</b> to focus the math region and remove background noise.</p>
+    <p>• For long derivations, enable <b>Auto-capture</b> and move the paper slowly.</p>
+    <div class="modal-actions">
+      <button id="tips-close" class="btn btn-outline">Close</button>
+      <button id="tips-ok" class="btn btn-primary">Got it</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toasts -->
+<div id="toasts" class="toast" aria-live="polite" aria-atomic="true"></div>
+
+<script>
+/* ---------- Elements ---------- */
+const video = document.getElementById("video");
+const canvas = document.getElementById("canvas");
+const ocrTextEl = document.getElementById("ocrText");
+const explainOut = document.getElementById("explainOut");
+const statusEl = document.getElementById("status");
+const ocrSkel = document.getElementById("ocrSkeleton");
+const expSkel = document.getElementById("expSkeleton");
+const historyEl = document.getElementById("history");
+const historyEmpty = document.getElementById("history-empty");
+const stepsAcc = document.getElementById("stepsAcc");
+const stepsBody = document.getElementById("stepsBody");
+
+const btnCapture = document.getElementById("btn-capture");
+const btnStop = document.getElementById("btn-stop");
+const btnRestart = document.getElementById("btn-restart");
+const btnStep = document.getElementById("btn-step");
+const btnCopyOCR = document.getElementById("btn-copy-ocr");
+const btnCopyExp = document.getElementById("btn-copy-expl");
+const btnShare = document.getElementById("btn-share");
+const btnPDF = document.getElementById("btn-pdf");
+const btnClearHist = document.getElementById("btn-clear-history");
+const btnCaptureHero = document.getElementById("btn-capture-hero");
+const btnStopHero = document.getElementById("btn-stop-hero");
+const toggleAuto = document.getElementById("toggle-auto");
+const toggleCrop = document.getElementById("toggle-crop");
+
+const tips = document.getElementById("tips");
+document.getElementById("btn-help").onclick = ()=> tips.classList.add("open");
+document.getElementById("tips-close").onclick = ()=> tips.classList.remove("open");
+document.getElementById("tips-ok").onclick = ()=> tips.classList.remove("open");
+
+/* ---------- Utilities ---------- */
+let stream=null, autoTimer=null;
+
+function toast(msg){
+  const host = document.getElementById("toasts");
+  const n = document.createElement("div");
+  n.textContent = msg;
+  host.appendChild(n);
+  setTimeout(()=>{ n.style.opacity=.0; setTimeout(()=>host.removeChild(n),220); }, 1800);
+}
+function status(msg, isErr=false){
+  statusEl.textContent = msg;
+  statusEl.style.color = isErr ? "var(--error)" : "var(--muted)";
+}
+function secureOK(){
+  const h=location.hostname, p=location.protocol;
+  return p==="https:" || h==="localhost" || h==="127.0.0.1" || h==="[::1]";
+}
+function copy(text){ if(!text) return; navigator.clipboard?.writeText(text).then(()=>toast("Copied")); }
+async function share(text){
+  if (navigator.share){ try{ await navigator.share({title:"EdVenture Result", text}); toast("Shared"); }catch(e){} }
+  else { copy(text); }
+}
+function openPDF(ocr, html){
+  const w=window.open("","_blank");
+  w.document.write(`<html><head><title>EdVenture — Solution</title>
+  <style>body{font-family:Inter,system-ui,sans-serif;padding:24px} h2{margin:.2rem 0} pre{white-space:pre-wrap}</style>
+  </head><body><h2>OCR</h2><pre>${ocr.replaceAll("<","&lt;")}</pre><h2>Explanation</h2><div>${html}</div></body></html>`);
+  w.document.close(); w.focus(); setTimeout(()=>w.print(), 300);
+}
+
+/* ---------- History ---------- */
+function saveHistory(text, explanation){
+  const list = JSON.parse(localStorage.getItem("edv_hist")||"[]");
+  list.unshift({ ts:Date.now(), text, explanation });
+  while(list.length>6) list.pop();
+  localStorage.setItem("edv_hist", JSON.stringify(list));
+  renderHistory();
+}
+function renderHistory(){
+  const list = JSON.parse(localStorage.getItem("edv_hist")||"[]");
+  historyEl.innerHTML = "";
+  if (!list.length){
+    historyEl.appendChild(historyEmpty);
+    historyEmpty.classList.remove("hide"); return;
+  }
+  list.forEach((it, idx)=>{
+    const d=new Date(it.ts);
+    const el=document.createElement("div");
+    el.className="history-item";
+    el.innerHTML=`
+      <div class="history-head"><span>${d.toLocaleString()}</span>
+        <div class="history-actions">
+          <button class="btn-chip hist-restore" data-i="${idx}">Restore</button>
+          <button class="btn-chip hist-copy" data-i="${idx}">Copy</button>
+        </div>
+      </div>
+      <div style="margin-top:6px;color:#0f172a;font-weight:600">OCR</div>
+      <div style="font-size:13px;color:#475569">${it.text||"-"}</div>
+    `;
+    historyEl.appendChild(el);
+  });
+  historyEl.querySelectorAll(".hist-restore").forEach(b=>{
+    b.onclick=()=>{
+      const list=JSON.parse(localStorage.getItem("edv_hist")||"[]");
+      const i=+b.dataset.i, it=list[i]; if(!it) return;
+      ocrTextEl.textContent=it.text||"-";
+      explainOut.innerHTML=it.explanation||"-";
+      if (window.MathJax?.typesetPromise) MathJax.typesetPromise([explainOut]);
+      toast("Restored from history");
+    };
+  });
+  historyEl.querySelectorAll(".hist-copy").forEach(b=>{
+    b.onclick=()=>{
+      const list=JSON.parse(localStorage.getItem("edv_hist")||"[]");
+      const i=+b.dataset.i, it=list[i]; if(!it) return;
+      copy(`OCR:\n${it.text}\n\nExplanation:\n${it.explanation.replace(/<[^>]*>/g,"")}`);
+    };
+  });
+}
+
+/* ---------- Camera ---------- */
+(function shim(){
+  if(!navigator.mediaDevices) navigator.mediaDevices={};
+  if(!navigator.mediaDevices.getUserMedia){
+    const gum=navigator.getUserMedia||navigator.webkitGetUserMedia||navigator.mozGetUserMedia;
+    if(gum) navigator.mediaDevices.getUserMedia=(c)=>new Promise((res,rej)=>gum.call(navigator,c,res,rej));
+  }
+})();
+
+async function startCamera(){
+  if(!secureOK()) return status("Open on https:// or http://localhost:3000", true);
+  if(!navigator.mediaDevices?.getUserMedia) return status("Camera API unavailable", true);
+  try{
+    status("Requesting camera permission…");
+    stream = await navigator.mediaDevices.getUserMedia({
+      video:{ width:{ideal:1280}, height:{ideal:720}, facingMode:{ideal:"environment"} },
+      audio:false
+    });
+    video.srcObject = stream;
+    await new Promise(r=>{ if(video.readyState>=1) return r(); video.onloadedmetadata=()=>r(); });
+    await video.play();
+    btnCapture.disabled=false;
+    status("Camera ready. Tip: fit math inside the frame.");
+    if(toggleAuto.checked && !autoTimer) autoTimer=setInterval(()=>btnCapture.click(), 4000);
+  }catch(e){ status("Could not access camera: "+(e?.message||e), true); }
+}
+function stopCamera(){
+  if(autoTimer){clearInterval(autoTimer);autoTimer=null;}
+  if(stream){ for(const t of stream.getTracks()) t.stop(); stream=null; }
+  video.srcObject=null; btnCapture.disabled=true; status("Camera stopped.");
+}
+
+/* ---------- UI wiring ---------- */
+window.addEventListener("load", ()=>{ startCamera(); renderHistory(); });
+
+document.querySelectorAll(".btn").forEach(b=>{
+  b.addEventListener("mousemove", e=>{
+    b.style.setProperty("--x", e.offsetX+"px");
+    b.style.setProperty("--y", e.offsetY+"px");
+  });
+});
+
+btnStop.onclick = stopCamera;
+btnRestart.onclick = ()=>{ stopCamera(); startCamera(); };
+btnCaptureHero.onclick = ()=>btnCapture.click();
+btnStopHero.onclick    = ()=>btnStop.click();
+
+btnCopyOCR.onclick = ()=>copy(ocrTextEl.innerText.trim());
+btnCopyExp.onclick = ()=>copy(explainOut.innerText.trim());
+btnShare.onclick   = ()=>share(`OCR:\n${ocrTextEl.innerText.trim()}\n\nExplanation:\n${explainOut.innerText.trim()}`);
+btnPDF.onclick     = ()=>openPDF(ocrTextEl.innerText.trim(), explainOut.innerHTML);
+btnClearHist.onclick = ()=>{ localStorage.removeItem("edv_hist"); renderHistory(); toast("History cleared"); };
+
+toggleAuto.onchange = ()=>{
+  if(toggleAuto.checked && !autoTimer) autoTimer=setInterval(()=>btnCapture.click(), 4000);
+  else if(!toggleAuto.checked && autoTimer){clearInterval(autoTimer);autoTimer=null;}
+};
+
+/* Keyboard shortcuts */
+window.addEventListener("keydown",(e)=>{
+  if(e.key.toLowerCase()==="c") btnCapture.click();
+  if(e.key.toLowerCase()==="s") btnStop.click();
+  if(e.key.toLowerCase()==="r") btnRestart.click();
+  if((e.ctrlKey||e.metaKey)&&e.shiftKey&&e.key.toLowerCase()==="c") btnCopyExp.click();
+});
+
+/* ---------- Capture + pipeline ---------- */
+function showSkeletons(show){
+  [ocrSkel, expSkel].forEach(s=>s.classList.toggle("hide", !show));
+}
+btnCapture.onclick = async ()=>{
+  if(!stream) return status("Camera is not running.", true);
+  const vw=video.videoWidth||1280, vh=video.videoHeight||720;
+  if(!vw||!vh) return status("Camera not ready", true);
+
+  // Optional tight crop
+  let sx=0, sy=0, sw=vw, sh=vh;
+  if(toggleCrop.checked){
+    const scale=.80; sw=Math.floor(vw*scale); sh=Math.floor(vh*scale);
+    sx=Math.floor((vw-sw)/2); sy=Math.floor((vh-sh)/2);
+  }
+  canvas.width=sw; canvas.height=sh;
+  const ctx=canvas.getContext("2d"); ctx.drawImage(video, sx,sy,sw,sh, 0,0,sw,sh);
+  const dataUrl=canvas.toDataURL("image/jpeg", .9);
+
+  // Reset UI
+  showSkeletons(true);
+  ocrTextEl.textContent="-";
+  explainOut.innerHTML="-";
+  stepsAcc.classList.add("hide");
+  status("Analyzing… (OCR + Explain)");
+  btnCapture.disabled=true;
+
+  const r=await fetch("/api/pipeline",{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ imageDataUrl:dataUrl }) });
+  const data=await r.json().catch(()=>({}));
+  showSkeletons(false);
+
+  if(!r.ok){ status("Pipeline failed. "+(data?.error||r.statusText), true); btnCapture.disabled=false; return; }
+
+  ocrTextEl.textContent=data.text||"-";
+  explainOut.innerHTML=data.explanation||"-";
+
+  // Build steps accordion if possible
+  const raw=(data.explanation||"");
+  const chunks = raw.split(/(?:##\s*Step.*?:|<br>|\\n)/i).map(s=>s.trim()).filter(Boolean);
+  if(chunks.length>1){
+    stepsBody.innerHTML="";
+    chunks.forEach((c,i)=>{
+      const p=document.createElement("p"); p.style.margin="8px 0"; p.innerHTML = (i?`<b>Step ${i}.</b> `:"")+c;
+      stepsBody.appendChild(p);
+    });
+    stepsAcc.classList.remove("hide");
+  }
+
+  if(window.MathJax?.typesetPromise) await MathJax.typesetPromise([explainOut, stepsBody]);
+  saveHistory(ocrTextEl.textContent, explainOut.innerHTML);
+  status("Done.");
+  btnCapture.disabled=false;
+};
+</script>
+</body>
+</html>
