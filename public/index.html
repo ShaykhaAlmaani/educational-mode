@@ -81,7 +81,7 @@ body{margin:0;background:var(--page);color:var(--ink);font-family:Inter,system-u
 /* Content area container */
 .content{flex:1;min-height:0;overflow:auto;padding:24px}
 
-/* ---------- Your existing camera UI (styles kept, only adapted widths) ---------- */
+/* ---------- Camera UI ---------- */
 .container{max-width:1220px;margin:0 auto}
 .grid{display:grid;gap:18px;grid-template-columns:1.04fr .96fr;align-items:start}
 @media (max-width:992px){.grid{grid-template-columns:1fr}}
@@ -182,7 +182,7 @@ video,canvas{display:block;width:100%}
     <!-- Content -->
     <div class="content">
       <div class="container">
-        <!-- Work area ONLY (no hero), matching your screenshot -->
+        <!-- Work area ONLY (no hero) -->
         <section class="grid" aria-label="work area">
           <!-- Camera panel -->
           <article class="card" aria-label="camera panel">
@@ -268,7 +268,7 @@ video,canvas{display:block;width:100%}
   </main>
 </div>
 
-<!-- Hidden hero buttons kept so your original JS stays intact (no logic changes) -->
+<!-- Hidden hero buttons (keep logic intact) -->
 <button id="btn-capture-hero" class="hide">Capture</button>
 <button id="btn-stop-hero" class="hide">Stop</button>
 
@@ -290,7 +290,7 @@ video,canvas{display:block;width:100%}
 <div id="toasts" class="toast" aria-live="polite" aria-atomic="true"></div>
 
 <script>
-/* ====== YOUR ORIGINAL CAMERA LOGIC (unchanged) ====== */
+/* ====== CAMERA & UI LOGIC ====== */
 const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
 const ocrTextEl = document.getElementById("ocrText");
@@ -396,7 +396,7 @@ function renderHistory(){
     b.onclick=()=>{
       const list=JSON.parse(localStorage.getItem("edv_hist")||"[]");
       const i=+b.dataset.i, it=list[i]; if(!it) return;
-      copy(OCR:\n${it.text}\n\nExplanation:\n${it.explanation.replace(/<[^>]*>/g,"")});
+      copy(`OCR:\n${it.text}\n\nExplanation:\n${it.explanation.replace(/<[^>]*>/g,"")}`);
     };
   });
 }
@@ -436,13 +436,6 @@ function stopCamera(){
 /* Wiring */
 window.addEventListener("load", ()=>{ startCamera(); renderHistory(); });
 
-document.querySelectorAll(".btn").forEach(b=>{
-  b.addEventListener("mousemove", e=>{
-    b.style.setProperty("--x", e.offsetX+"px");
-    b.style.setProperty("--y", e.offsetY+"px");
-  });
-});
-
 btnStop.onclick = stopCamera;
 btnRestart.onclick = ()=>{ stopCamera(); startCamera(); };
 btnCaptureHero.onclick = ()=>btnCapture.click();
@@ -450,7 +443,7 @@ btnStopHero.onclick    = ()=>btnStop.click();
 
 btnCopyOCR.onclick = ()=>copy(ocrTextEl.innerText.trim());
 btnCopyExp.onclick = ()=>copy(explainOut.innerText.trim());
-btnShare.onclick   = ()=>share(OCR:\n${ocrTextEl.innerText.trim()}\n\nExplanation:\n${explainOut.innerText.trim()});
+btnShare.onclick   = ()=>share(`OCR:\n${ocrTextEl.innerText.trim()}\n\nExplanation:\n${explainOut.innerText.trim()}`);
 btnPDF.onclick     = ()=>openPDF(ocrTextEl.innerText.trim(), explainOut.innerHTML);
 btnClearHist.onclick = ()=>{ localStorage.removeItem("edv_hist"); renderHistory(); toast("History cleared"); };
 
