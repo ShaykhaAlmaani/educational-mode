@@ -1,178 +1,206 @@
-// netlify/functions/pipeline.js
+// Netlify Function: /api/pipeline
+// POST { imageDataUrl: "data:image/jpeg;base64,..." }
 
-// ---------- endpoints ----------
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-
-// ---------- model defaults ----------
-const GROQ_VISION_MODEL =
-  process.env.GROQ_VISION_MODEL || "llama-3.2-11b-vision-preview";
-const GROQ_TEXT_MODEL =
-  process.env.GROQ_TEXT_MODEL || "llama-3.1-70b-versatile";
-const OPENROUTER_VISION_MODEL =
-  process.env.OPENROUTER_VISION_MODEL || "gpt-4o-mini"; // change if your OpenRouter key lacks access
-
-// ---------- helpers ----------
-const json = (status, data) => ({
-  statusCode: status,
-  headers: { "Content-Type": "application/json; charset=utf-8" },
-  body: JSON.stringify(data),
-});
-
-function cleanOCR(s = "") {
-  return s
-    .replace(/```[\s\S]*?```/g, (m) => m.replace(/```/g, "")) // strip triple fences
-    .replace(/\*{2,}/g, "")
-    .replace(/!\[[^\]]*]\([^)]+\)/g, "")
-    .trim();
-}
-
-function toHtmlParagraphs(text = "") {
-  const blocks = text.split(/\n{2,}/).map(b => b.trim()).filter(Boolean);
-  return blocks.map(b => `<p>${b.replace(/\n/g, "<br>")}</p>`).join("\n");
-}
-
-// ---------- OCR (primary: Groq Vision) ----------
-async function ocrWithGroq(imageDataUrl) {
-  const payload = {
-    model: GROQ_VISION_MODEL,
-    temperature: 0.0,
-    messages: [
-      { role: "system", content: "Return ONLY OCR text. Preserve math symbols and line breaks. No extra commentary." },
-      {
-        role: "user",
-        content: [
-          { type: "text", text: "OCR this image (math-friendly)." },
-          { type: "image_url", image_url: { url: imageDataUrl } }, // <-- correct schema
-        ],
-      },
-    ],
-  };
-
-  const r = await fetch(GROQ_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!r.ok) {
-    const msg = await r.text().catch(() => r.statusText);
-    throw new Error(`Groq OCR failed: ${r.status} ${msg}`);
-  }
-  const data = await r.json();
-  const text = data?.choices?.[0]?.message?.content ?? "";
-  return cleanOCR(text);
-}
-
-// ---------- OCR (fallback: OpenRouter Vision) ----------
-async function ocrWithOpenRouter(imageDataUrl) {
-  const payload = {
-    model: OPENROUTER_VISION_MODEL,
-    temperature: 0.2,
-    messages: [
-      {
-        role: "user",
-        content: [
-          { type: "text", text: "Return ONLY the OCR text from the image. Preserve math formatting / newlines." },
-          { type: "image_url", image_url: { url: imageDataUrl } }, // <-- correct schema
-        ],
-      },
-    ],
-  };
-
-  const r = await fetch(OPENROUTER_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-      "HTTP-Referer": "https://edventure.example",
-      "X-Title": "EdVenture Educational Mode",
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!r.ok) {
-    const msg = await r.text().catch(() => r.statusText);
-    throw new Error(`OpenRouter OCR failed: ${r.status} ${msg}`);
-  }
-  const data = await r.json();
-  const text = data?.choices?.[0]?.message?.content ?? "";
-  return cleanOCR(text);
-}
-
-// ---------- Explain (Groq text model) ----------
-async function explainWithGroq(ocrText, stepByStep = true) {
-  const sys = `You are a math tutor. Read the OCR text and:
-- If it is a single expression, compute the result with a clear explanation.
-- If it is a multi-step solution, verify/fix steps and present a clean solution.
-- Use LaTeX for math ($...$ inline, or \\[ ... \\] display).
-- End with the final answer as \\[\\boxed{...}\\].`;
-
-  const payload = {
-    model: GROQ_TEXT_MODEL,
-    temperature: 0.2,
-    messages: [
-      { role: "system", content: sys },
-      { role: "user", content: (stepByStep ? "Explain step by step:\n" : "Explain briefly:\n") + ocrText },
-    ],
-  };
-
-  const r = await fetch(GROQ_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!r.ok) {
-    const msg = await r.text().catch(() => r.statusText);
-    throw new Error(`Groq explain failed: ${r.status} ${msg}`);
-  }
-  const data = await r.json();
-  return (data?.choices?.[0]?.message?.content || "").trim();
-}
-
-// ---------- Netlify function ----------
-exports.handler = async (event) => {
+export default async function handler(req, res) {
   try {
-    if (event.httpMethod !== "POST") return json(405, { error: "Method Not Allowed" });
+    if (req.method !== "POST") {
+      return res.status(405).json({ error: "method_not_allowed" });
+    }
 
-    const { imageDataUrl, stepByStep = true } = JSON.parse(event.body || "{}");
-    if (!imageDataUrl) return json(400, { error: "Missing imageDataUrl" });
+    const { imageDataUrl } = req.body || {};
+    if (
+      !imageDataUrl ||
+      typeof imageDataUrl !== "string" ||
+      !imageDataUrl.startsWith("data:image/")
+    ) {
+      return res.status(400).json({ error: "invalid_image" });
+    }
 
-    // 1) OCR (Groq primary → OpenRouter fallback)
-    let text = "";
-    try {
-      text = await ocrWithGroq(imageDataUrl);
-    } catch (e1) {
-      console.warn("[OCR primary] " + e1.message);
-      if (process.env.OPENROUTER_API_KEY) {
-        text = await ocrWithOpenRouter(imageDataUrl);
-      } else {
-        throw e1;
+    const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+    const GROQ_API_KEY = process.env.GROQ_API_KEY;
+
+    if (!OPENROUTER_API_KEY) {
+      return res.status(500).json({ error: "missing_openrouter_key" });
+    }
+    if (!GROQ_API_KEY) {
+      return res.status(500).json({ error: "missing_groq_key" });
+    }
+
+    // -----------------------------
+    // 1) OCR via OpenRouter (Qwen VL)
+    // -----------------------------
+    const orHeaders = {
+      Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://example.com", // any string is OK
+      "X-Title": "EdVenture OCR",
+    };
+
+    const ocrPayloadA = {
+      model: "qwen/qwen-2.5-vl-7b-instruct",
+      temperature: 0,
+      max_tokens: 220,
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a strict OCR engine for math. Extract ONLY the math expression(s) and/or numbered steps exactly as seen. No extra words.",
+        },
+        {
+          role: "user",
+          content: [
+            { type: "input_text", text: "Extract the math from this image." },
+            { type: "input_image", image_url: imageDataUrl },
+          ],
+        },
+      ],
+    };
+
+    // Attempt A (preferred schema)
+    let ocrText = "";
+    let ocrResp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: orHeaders,
+      body: JSON.stringify(ocrPayloadA),
+    });
+
+    // If OR rejected OR the model ignored the image, try a second schema
+    if (!ocrResp.ok) {
+      // fall through and try schema B
+    } else {
+      const j = await ocrResp.json().catch(() => null);
+      ocrText =
+        j?.choices?.[0]?.message?.content?.trim?.() ||
+        j?.choices?.[0]?.message?.content ||
+        "";
+      // Some models reply "please provide an image" when they didn't parse it
+      if (
+        /provide the image|no image|can't see|cannot see/i.test(ocrText) ||
+        !ocrText
+      ) {
+        ocrText = "";
       }
     }
 
-    // 2) If no math-like content, answer early
-    if (!text || !/[0-9=+\-×*/()]/.test(text)) {
-      return json(200, {
-        text,
-        explanation: toHtmlParagraphs(
-          "The image does not contain any mathematical expressions or steps."
-        ),
+    if (!ocrText) {
+      // Attempt B (alternate image_url shape)
+      const ocrPayloadB = {
+        model: "qwen/qwen-2.5-vl-7b-instruct",
+        temperature: 0,
+        max_tokens: 220,
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a strict OCR engine for math. Extract ONLY the math expression(s) and/or numbered steps exactly as seen. No extra words.",
+          },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "Extract the math from this image." },
+              { type: "image_url", image_url: { url: imageDataUrl } },
+            ],
+          },
+        ],
+      };
+
+      ocrResp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: orHeaders,
+        body: JSON.stringify(ocrPayloadB),
+      });
+
+      if (!ocrResp.ok) {
+        const detail = await ocrResp.text().catch(() => "");
+        return res
+          .status(502)
+          .json({ error: "openrouter_failed", detail: detail.slice(0, 400) });
+      }
+
+      const j2 = await ocrResp.json().catch(() => null);
+      ocrText =
+        j2?.choices?.[0]?.message?.content?.trim?.() ||
+        j2?.choices?.[0]?.message?.content ||
+        "";
+    }
+
+    // A tiny numeric evaluator for very simple expressions like "3*0.5+3*(-1)"
+    const numeric = tryEvaluate(ocrText);
+
+    // ---------------------------------------
+    // 2) Explanation via Groq (Llama 3.3 70B)
+    // ---------------------------------------
+    const explainResp = await fetch(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${GROQ_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          temperature: 0.2,
+          messages: [
+            {
+              role: "system",
+              content:
+                `You are a precise, kind math tutor.\n` +
+                `Output rules:\n` +
+                `- Use LaTeX for all math. Inline with \\( ... \\); display with $$ ... $$.\n` +
+                `- No markdown headings. Keep sentences short.\n` +
+                `- If input is a single expression, solve step-by-step.\n` +
+                `- If it looks like student work, briefly note mistakes and correct them.\n` +
+                `- End with the final answer as $$\\boxed{...}$$.`,
+            },
+            {
+              role: "user",
+              content:
+                `OCR TEXT:\n${ocrText || "(empty)"}\n\n` +
+                `Explain or solve clearly. Return plain text containing LaTeX delimiters (no JSON).`,
+            },
+          ],
+        }),
+      }
+    );
+
+    if (!explainResp.ok) {
+      const detail = await explainResp.text().catch(() => "");
+      return res.status(502).json({
+        error: "groq_failed",
+        detail: detail.slice(0, 400),
+        text: ocrText,
+        numeric,
       });
     }
 
-    // 3) Explain
-    const explanationRaw = await explainWithGroq(text, stepByStep);
-    return json(200, { text, explanation: toHtmlParagraphs(explanationRaw) });
+    const explainJson = await explainResp.json().catch(() => null);
+    const explanation =
+      explainJson?.choices?.[0]?.message?.content?.trim?.() ||
+      explainJson?.choices?.[0]?.message?.content ||
+      "";
+
+    return res.status(200).json({
+      text: ocrText || "-",
+      numeric: numeric ?? null,
+      explanation: explanation || "-",
+    });
   } catch (err) {
     console.error(err);
-    return json(500, { error: err.message || "Pipeline error" });
+    return res.status(500).json({ error: "pipeline_exception" });
   }
-};
+}
+
+/* --- small helper for simple arithmetic strings --- */
+function tryEvaluate(expr) {
+  try {
+    const clean = (expr || "")
+      .replace(/[^0-9+\-*/().\s]/g, "")
+      .replace(/\s+/g, "");
+    if (!clean) return null;
+    const val = Function('"use strict";return(' + clean + ')')();
+    return Number.isFinite(val) ? val : null;
+  } catch {
+    return null;
+  }
+}
