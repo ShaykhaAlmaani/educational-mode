@@ -85,7 +85,7 @@ export default async function handler(req, res) {
     if (!ocrText) {
       // Attempt B (alternate image_url shape)
       const ocrPayloadB = {
-        model: "qwen/qwen-2.5-vl-7b-instruct",
+        model: "google/gemini-1.5-flash",
         temperature: 0,
         max_tokens: 220,
         messages: [
